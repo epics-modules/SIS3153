@@ -22,8 +22,9 @@
 # the CONFIG_SITE file.
 
 # Variables and paths to dependent modules:
-#MODULES = /path/to/modules
-#MYMODULE = $(MODULES)/my-module
+
+SUPPORT = /corvette/home/epics/devel
+ASYN = $(SUPPORT)/asyn-4-45
 
 # If using the sequencer, point SNCSEQ at its top directory:
 #SNCSEQ = $(MODULES)/seq-ver
