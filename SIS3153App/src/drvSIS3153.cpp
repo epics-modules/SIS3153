@@ -41,6 +41,7 @@ public:
     drvSIS3153(const char *portName);
 
     /* These are the methods that we override from asynPortDriver */
+    virtual asynStatus getAddress(asynUser *pasynUser, int *address);
     virtual asynStatus readInt32(asynUser *pasynUser, epicsInt32 *value);
     virtual asynStatus writeInt32(asynUser *pasynUser, epicsInt32 value);
 
@@ -66,7 +67,7 @@ drvSIS3153::drvSIS3153(const char *portName)
                     1, /* maxAddr */
                     asynInt32Mask | asynDrvUserMask, /* Interface mask */
                     asynInt32Mask,  /* Interrupt mask */
-                    ASYN_CANBLOCK, /* asynFlags.  This driver blocks and it is not multi-device */
+                    ASYN_CANBLOCK | ASYN_MULTIDEVICE, /* asynFlags.  This driver blocks and it is multi-device */
                     1, /* Autoconnect */
                     0, /* Default priority */
                     0) /* Default stack size*/
@@ -94,7 +95,7 @@ drvSIS3153::drvSIS3153(const char *portName)
         asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
         "%s::%s error calling Sis3150usb_OpenDriver_And_Download_FX2_Setup = %d\n", 
         driverName, functionName, status);
-        return;
+        //return;
     }
 
     createParam(P_A16D8_String,  asynParamInt32, &P_A16D8);
@@ -108,6 +109,13 @@ drvSIS3153::drvSIS3153(const char *portName)
     createParam(P_A32D32_String, asynParamInt32, &P_A32D32);
 }
 
+asynStatus drvSIS3153::getAddress(asynUser *pasynUser, int *address)
+{
+    // We use the asyn address for Modbus register addressing, but not for multiple addresses in asynPortDriver
+    *address = 0;
+    return asynSuccess;
+}
+
 asynStatus drvSIS3153::readInt32(asynUser *pasynUser, epicsInt32 *value)
 {
     int function = pasynUser->reason;
@@ -116,8 +124,9 @@ asynStatus drvSIS3153::readInt32(asynUser *pasynUser, epicsInt32 *value)
     const char *paramName;
     const char* functionName = "readInt32";
 
-    /* Get the VME address */
-    getAddress(pasynUser, &addr);
+    /* Get the VME address. 
+     * Use asynManager function, not class method because we don't use it for parameter library. */
+    pasynManager->getAddr(pasynUser, &addr);
     /* Fetch the parameter string name for possible use in debugging */
     getParamName(function, &paramName);
 
@@ -126,13 +135,53 @@ asynStatus drvSIS3153::readInt32(asynUser *pasynUser, epicsInt32 *value)
         status = vme_A16D8_read(devHandle_, addr, &vme_data);
         *value = vme_data;
     }
+    else if (function == P_A16D16) {
+        u_int16_t vme_data;
+        status = vme_A16D16_read(devHandle_, addr, &vme_data);
+        *value = vme_data;
+    }
+    else if (function == P_A16D32) {
+        u_int32_t vme_data;
+        status = vme_A16D32_read(devHandle_, addr, &vme_data);
+        *value = vme_data;
+    }
+    else if (function == P_A24D8) {
+        u_int8_t vme_data;
+        status = vme_A24D8_read(devHandle_, addr, &vme_data);
+        *value = vme_data;
+    }
+    else if (function == P_A24D16) {
+        u_int16_t vme_data;
+        //status = vme_A24D16_read(devHandle_, addr, &vme_data);
+        *value = vme_data;
+    }
+    else if (function == P_A24D32) {
+        u_int32_t vme_data;
+        //status = vme_A24D32_read(devHandle_, addr, &vme_data);
+        *value = vme_data;
+    }
+    else if (function == P_A32D8) {
+        u_int8_t vme_data;
+        status = vme_A32D8_read(devHandle_, addr, &vme_data);
+        *value = vme_data;
+    }
+    else if (function == P_A32D16) {
+        u_int16_t vme_data;
+        status = vme_A32D16_read(devHandle_, addr, &vme_data);
+        *value = vme_data;
+    }
+    else if (function == P_A32D32) {
+        u_int32_t vme_data;
+        status = vme_A32D32_read(devHandle_, addr, &vme_data);
+        *value = vme_data;
+    }
 
     if (status)
         epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
                   "%s:%s: status=%d, function=%d, name=%s, addr=0x%x, value=%d",
                   driverName, functionName, status, function, paramName, addr, *value);
     else
-        asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
+        asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
               "%s:%s: function=%d, name=%s, addr=0x%x, value=%d\n",
               driverName, functionName, function, paramName, addr, *value);
     return status ? asynError : asynSuccess;
@@ -146,8 +195,9 @@ asynStatus drvSIS3153::writeInt32(asynUser *pasynUser, epicsInt32 value)
     const char *paramName;
     const char* functionName = "writeInt32";
 
-    /* Get the VME address */
-    getAddress(pasynUser, &addr);
+    /* Get the VME address. 
+     * Use asynManager function, not class method because we don't use it for parameter library. */
+    pasynManager->getAddr(pasynUser, &addr);
     /* Fetch the parameter string name for possible use in debugging */
     getParamName(function, &paramName);
 
@@ -155,13 +205,45 @@ asynStatus drvSIS3153::writeInt32(asynUser *pasynUser, epicsInt32 value)
         u_int8_t vme_data = value;
         status = vme_A16D8_write(devHandle_, addr, vme_data);
     }
+    else if (function == P_A16D16) {
+        u_int16_t vme_data = value;
+        status = vme_A16D16_write(devHandle_, addr, vme_data);
+    }
+    else if (function == P_A16D32) {
+        u_int32_t vme_data = value;
+        status = vme_A16D32_write(devHandle_, addr, vme_data);
+    }
+    else if (function == P_A24D8) {
+        u_int8_t vme_data = value;
+        status = vme_A24D8_write(devHandle_, addr, vme_data);
+    }
+    else if (function == P_A24D16) {
+        u_int16_t vme_data = value;
+        status = vme_A24D16_write(devHandle_, addr, vme_data);
+    }
+    else if (function == P_A24D32) {
+        u_int32_t vme_data = value;
+        //status = vme_A24D32_write(devHandle_, addr, vme_data);
+    }
+    else if (function == P_A32D8) {
+        u_int8_t vme_data = value;
+        status = vme_A32D8_write(devHandle_, addr, vme_data);
+    }
+    else if (function == P_A32D16) {
+        u_int16_t vme_data = value;
+        status = vme_A32D16_write(devHandle_, addr, vme_data);
+    }
+    else if (function == P_A32D32) {
+        u_int32_t vme_data = value;
+        status = vme_A32D32_write(devHandle_, addr, vme_data);
+    }
 
     if (status)
         epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
                   "%s:%s: status=%d, function=%d, name=%s, addr=0x%x, value=%d",
                   driverName, functionName, status, function, paramName, addr, value);
     else
-        asynPrint(pasynUser, ASYN_TRACEIO_DRIVER,
+        asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
               "%s:%s: function=%d, name=%s, addr=0x%x, value=%d\n",
               driverName, functionName, function, paramName, addr, value);
     return status ? asynError : asynSuccess;
