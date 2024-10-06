@@ -23,6 +23,7 @@ DBD += SIS3153App.dbd
 
 # SIS3153App.dbd will include these files:
 SIS3153App_DBD += base.dbd
+SIS3153App_DBD += asyn.dbd
 SIS3153App_DBD += SIS3153Support.dbd
 
 # SIS3153App_registerRecordDeviceDriver.cpp derives from SIS3153.dbd
