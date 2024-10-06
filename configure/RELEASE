@@ -25,6 +25,7 @@
 
 SUPPORT = /corvette/home/epics/devel
 ASYN = $(SUPPORT)/asyn-4-45
+SIS3153 = $(SUPPORT)/SIS3153
 
 # If using the sequencer, point SNCSEQ at its top directory:
 #SNCSEQ = $(MODULES)/seq-ver
