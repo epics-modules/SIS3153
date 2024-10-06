@@ -1,0 +1,13 @@
+# Database for VME access to Zygo 410x cards
+# It only uses the A24 address space
+
+record(longin,"$(P)SoftwareVersion") {
+    field(DTYP, "asynInt32")
+    field(INP,  "@asyn($(PORT),0x184)A24D16")
+    field(PINI, "YES")
+}
+
+record(longout,"$(P)PresetPosition") {
+    field(DTYP, "asynInt32")
+    field(OUT,  "@asyn($(PORT),0x60)A24D32")
+}
