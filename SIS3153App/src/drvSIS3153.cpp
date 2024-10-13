@@ -44,6 +44,10 @@ public:
     virtual asynStatus getAddress(asynUser *pasynUser, int *address);
     virtual asynStatus readInt32(asynUser *pasynUser, epicsInt32 *value);
     virtual asynStatus writeInt32(asynUser *pasynUser, epicsInt32 value);
+    virtual asynStatus drvUserCreate(asynUser *pasynUser, const char *drvInfo,
+                                     const char **pptypeName, size_t *psize);
+    virtual asynStatus drvUserDestroy(asynUser *pasynUser);
+
 
 protected:
     /** Values used for pasynUser->reason, and indexes into the parameter library. */
@@ -67,7 +71,7 @@ drvSIS3153::drvSIS3153(const char *portName)
                     1, /* maxAddr */
                     asynInt32Mask | asynDrvUserMask, /* Interface mask */
                     asynInt32Mask,  /* Interrupt mask */
-                    ASYN_CANBLOCK | ASYN_MULTIDEVICE, /* asynFlags.  This driver blocks and it is multi-device */
+                    ASYN_CANBLOCK, /* asynFlags.  This driver blocks and it is not multi-device */
                     1, /* Autoconnect */
                     0, /* Default priority */
                     0) /* Default stack size*/
@@ -77,6 +81,7 @@ drvSIS3153::drvSIS3153(const char *portName)
     unsigned int found;
 
     status = FindAll_SIS3150USB_Devices(&devStruct_, &found, 1);
+    printf("FindAll_SIS3150USB_Devices found %d devices, status=%d\n", found, status);
     if (status) {
         asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
         "%s::%s error calling FindAll_SIS3150USB_Devices = %d\n", 
@@ -84,19 +89,21 @@ drvSIS3153::drvSIS3153(const char *portName)
         return;
     }
 
-    devHandle_ = devStruct_.hDev;
-
     printf("path: %s\n", devStruct_.cDName);
     printf("vendor: %04X\n", devStruct_.idVendor);
     printf("product: %04X\n", devStruct_.idProduct);
+    printf("serial #: %04d\n", devStruct_.idSerNo);
 
     status = Sis3150usb_OpenDriver_And_Download_FX2_Setup ((PCHAR)devStruct_.cDName, &devStruct_);
     if (status) {
         asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
         "%s::%s error calling Sis3150usb_OpenDriver_And_Download_FX2_Setup = %d\n", 
         driverName, functionName, status);
-        //return;
+        return;
     }
+    devHandle_ = devStruct_.hDev;
+    printf("firmware: %04d\n", devStruct_.idFirmwareVersion);
+    printf("handle: %p\n", devHandle_);
 
     createParam(P_A16D8_String,  asynParamInt32, &P_A16D8);
     createParam(P_A16D16_String, asynParamInt32, &P_A16D16);
@@ -124,9 +131,8 @@ asynStatus drvSIS3153::readInt32(asynUser *pasynUser, epicsInt32 *value)
     const char *paramName;
     const char* functionName = "readInt32";
 
-    /* Get the VME address. 
-     * Use asynManager function, not class method because we don't use it for parameter library. */
-    pasynManager->getAddr(pasynUser, &addr);
+    /* Get the VME address which is in pasynUser->drvUser */
+    addr = *(int *)pasynUser->drvUser;
     /* Fetch the parameter string name for possible use in debugging */
     getParamName(function, &paramName);
 
@@ -152,12 +158,12 @@ asynStatus drvSIS3153::readInt32(asynUser *pasynUser, epicsInt32 *value)
     }
     else if (function == P_A24D16) {
         u_int16_t vme_data;
-        //status = vme_A24D16_read(devHandle_, addr, &vme_data);
+        status = vme_A24D16_read(devHandle_, addr, &vme_data);
         *value = vme_data;
     }
     else if (function == P_A24D32) {
         u_int32_t vme_data;
-        //status = vme_A24D32_read(devHandle_, addr, &vme_data);
+        status = vme_A24D32_read(devHandle_, addr, &vme_data);
         *value = vme_data;
     }
     else if (function == P_A32D8) {
@@ -180,10 +186,10 @@ asynStatus drvSIS3153::readInt32(asynUser *pasynUser, epicsInt32 *value)
         epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
                   "%s:%s: status=%d, function=%d, name=%s, addr=0x%x, value=%d",
                   driverName, functionName, status, function, paramName, addr, *value);
-    else
+    //else
         asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
-              "%s:%s: function=%d, name=%s, addr=0x%x, value=%d\n",
-              driverName, functionName, function, paramName, addr, *value);
+              "%s:%s: function=%d, name=%s, status=%d, addr=0x%x, value=%d\n",
+              driverName, functionName, function, paramName, status, addr, *value);
     return status ? asynError : asynSuccess;
 }
 
@@ -195,9 +201,8 @@ asynStatus drvSIS3153::writeInt32(asynUser *pasynUser, epicsInt32 value)
     const char *paramName;
     const char* functionName = "writeInt32";
 
-    /* Get the VME address. 
-     * Use asynManager function, not class method because we don't use it for parameter library. */
-    pasynManager->getAddr(pasynUser, &addr);
+    /* Get the VME address which is in pasynUser->drvUser */
+    addr = *(int *)pasynUser->drvUser;
     /* Fetch the parameter string name for possible use in debugging */
     getParamName(function, &paramName);
 
@@ -223,7 +228,7 @@ asynStatus drvSIS3153::writeInt32(asynUser *pasynUser, epicsInt32 value)
     }
     else if (function == P_A24D32) {
         u_int32_t vme_data = value;
-        //status = vme_A24D32_write(devHandle_, addr, vme_data);
+        status = vme_A24D32_write(devHandle_, addr, vme_data);
     }
     else if (function == P_A32D8) {
         u_int8_t vme_data = value;
@@ -239,14 +244,59 @@ asynStatus drvSIS3153::writeInt32(asynUser *pasynUser, epicsInt32 value)
     }
 
     if (status)
-        epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
-                  "%s:%s: status=%d, function=%d, name=%s, addr=0x%x, value=%d",
+        //epicsSnprintf(pasynUser->errorMessage, pasynUser->errorMessageSize,
+        asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,        
+                  "%s:%s: status=%d, function=%d, name=%s, addr=0x%x, value=%d\n",
                   driverName, functionName, status, function, paramName, addr, value);
     else
         asynPrint(pasynUserSelf, ASYN_TRACEIO_DRIVER,
               "%s:%s: function=%d, name=%s, addr=0x%x, value=%d\n",
               driverName, functionName, function, paramName, addr, value);
     return status ? asynError : asynSuccess;
+}
+
+/* asynDrvUser routines */
+asynStatus drvSIS3153::drvUserCreate(asynUser *pasynUser, const char *drvInfo,
+                                     const char **pptypeName, size_t *psize)
+{
+    static const char *functionName="drvUserCreate";
+
+    /* We are passed a string of the format "AddressMode Address"
+     * We convert the address string to an int and allocate and store it in pasynUser->drvUser.
+     * We remove " Address" from the string and call the base class. */
+
+    std::string drvString = drvInfo;
+    size_t pos = drvString.find(" ");
+    if (pos != std::string::npos) {
+        std::string addrString = drvString.substr(pos+1);
+        int *pAddr = new(int);
+        try {
+            *pAddr = (int)std::stol(addrString, 0, 0);
+        }
+        catch (std::exception &e) {
+            asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
+                "%s::%s invalid string, %s\n",
+                driverName, functionName, e.what());
+            return asynError;
+        }
+        pasynUser->drvUser = pAddr;
+    } else {
+        asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
+            "%s::%s Error, expected underscore in drvInfo string\n",
+            driverName, functionName);
+        return asynError;
+    }
+    std::string newDrvInfo = drvString.substr(0,pos);
+    return asynPortDriver::drvUserCreate(pasynUser, newDrvInfo.c_str(), pptypeName, psize);
+}
+
+asynStatus drvSIS3153::drvUserDestroy(asynUser *pasynUser)
+{
+    if (pasynUser->drvUser) {
+        delete (int *)(pasynUser->drvUser);
+    }
+    pasynUser->drvUser = NULL;
+    return asynSuccess;
 }
 
 /* Configuration routine.  Called directly, or from the iocsh function below */
@@ -278,4 +328,3 @@ void drvSIS3153Register(void)
 epicsExportRegistrar(drvSIS3153Register);
 
 }
-
