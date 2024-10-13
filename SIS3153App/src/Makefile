@@ -8,6 +8,7 @@ include $(TOP)/configure/CONFIG
 LIBRARY_IOC += SIS3153Support
 
 # Compile and add code to the support library
+USR_CPPFLAGS += -Dunix
 SIS3153Support_SRCS += drvSIS3153.cpp
 
 SIS3153Support_LIBS += SIS3150
