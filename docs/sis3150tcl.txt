@@ -1,0 +1,310 @@
+1  Introduction
+===============
+   The Tcl/Tk scripting language is a powerful extensible scripting language
+originally developed by John Ousterout, and currently maintained by the
+Tcl Core Team.   Tcl/Tk allows you to quickly assemble scripts, and 
+graphical users interfaces.  The sis3150 Tcl package provides support
+for the SIS 3150 USB/VME interface for Tcl under Linux.  This support
+will allow the Tcl/Tk savvy user to quickly build graphical control
+interfaces to control devices that are in VME crates controlled by 
+the sis3150.
+   Support consists of:
+
+* A Tcl loadable package that can provide support for the sis3150 in any
+  Tcl interpreter.
+
+* A sample program, vmeaccess.tcl that demonstrates the package by providing
+  a GUI interface to arbitrary addresses in the VME crate.
+
+
+2 The sis3150 package
+=====================
+
+The sis3150 package is installed in the lib subdirectory of the directory 
+tree in which you chose to build/install sis3150 support.  A package index
+is provided to support auto loading.  For the sake of simplicity, assume
+you have built and installed the support software in to /usr/opt/sisusb.
+The following fragment of Tcl code will add this library to the package
+load search path and then load the sis3150 package:
+
+
+lappend auto_path /usr/opt/sisusb
+package require sis3150
+
+Having done this, several commands will have been added to the running
+interpreter to support the SIS 3150.  All of these commands will be installed
+in the sis3150 namespace, and can be imported using the tclsh 
+namespace import command assuming there are no conflicts with existing commands.
+
+The idea behind the package is that you will open the interface, and receive
+a handle.  Using this handle you can invoke other commands to do operations
+on the interface.  The package commands are divided into the following subgroups:
+
+* Control operations
+* Register transfer operations
+* Single shot VME transfer operations
+* VME block transfer operations.
+
+2.1 Control operations
+----------------------
+
+Control operations allow you to enumerate, open and open with a firmware load:
+
+sis3150::enumerate
+
+Enumerates the list of sis3150 devices.  This command will return Tcl list.
+Each list element will describe a single interface, and will be a 5 element
+sublist.  The sub list elements are:
+   name   - The name of the usb device. Pass this to sis3150::opensis and
+            sis3150::ldopen
+   vendor - Will be the SIS USB vendor code.
+   product- The product code.  Reformatted as hex this will be 0x3150.
+   serial - Would be the serial number of the device, however presently
+            libusb does not seem to return the serial number properly so this is 0.
+   firmware- The firmware revision level. libusb also always returns 0 here.
+
+  Example : locating the first interface an opening it:
+
+  set interfaces [sis3150::enumerate]
+  set first      [lindex $interfaces 0]
+  set name       [lindex $first 0]
+  set handle     [sis3150::opensis $name]
+
+
+sis3150::opensis  name
+ 
+Opens an interface.  The name parameter is the name of the interface.  This
+will generally be gotten from the information returned from an enumerate operation.
+If successful, the command returns a handle which must be used in future
+operations on the interface.
+
+Example : locating the first interface an opening it:
+
+  set interfaces [sis3150::enumerate]
+  set first      [lindex $interfaces 0]
+  set name       [lindex $first 0]
+  set handle     [sis3150::opensis $name]
+
+sis3150::ldopen name
+
+Opens an interface and loads its firmware.  The name parameter is the name of the
+interface.  The name will generally be gotten from the information 
+returned from an enumerate operation.  The standard firmware will be
+loaded into the interface.
+
+If successful, the command returns a handle which must be used in future
+operations on the interface.
+
+Example : locating the first interface an opening it with a firmware load:
+
+  set interfaces [sis3150::enumerate]
+  set first      [lindex $interfaces 0]
+  set name       [lindex $first 0]
+  set handle     [sis3150::ldopen $name]
+
+
+
+sis3150::closesis   handle
+
+Close an open interface.  Once closed the handle is no longer valid for
+sis3150 package operations.
+
+Example:
+
+  set interfaces [sis3150::enumerate]
+  set first      [lindex $interfaces 0]
+  set name       [lindex $first 0]
+  set handle     [sis3150::ldopen $name]
+   ...
+  sis3150::close   $handle
+
+
+2.2 Register transfer operations
+--------------------------------
+
+Register transfer operations give read and write access to the internal
+register set of the SIS 3150.
+
+sis3150::regread  handle  regnum
+
+Reads a register and returns its current contents.  
+  handle  - is the handle returned from either sis3150::opensis or
+            sis3150::ldopen.
+  regnum  - is the register number to read.
+
+Example: Read/report the firmware version:
+
+  set id [sis3150::regread $handle 1]
+  set major [expr ($id >> 8) & 0xff]
+  set minor [expr ($id & 0xff]
+  puts "Firmware is at $major.$minor"
+
+
+sis3150::regwrite handle regnum value
+
+Writes a value to a register.   
+   handle   - The handle from an sis3150::opensis or sis3150::ldopen command.
+   regnum   - Number of the register to write..
+   value    - Value to write.
+
+Example: Blink the U1 light on and off.
+
+   sis3150::regwrite $handle 0 1;        # U1 on
+   after   1000
+   sis3150::regwrite $handle 0 0x10000   # U1 off.
+
+
+
+2.3 Single shot VME transfer operations
+---------------------------------------
+
+Single shot VME tranfers to a single read or write to the VME crate.
+
+      sis3150::vmereada32d32 handle address
+      sis3150::vmereada32d16 handle address
+      sis3150::vmereada32d8  handle address
+      sis3150::vmereada24d32 handle address
+      sis3150::vmereada24d16 handle address
+      sis3150::vmereada24d8  handle address
+      sis3150::vmereada16d32 handle address
+      sis3150::vmereada16d16 handle address
+      sis3150::vmereada16d8  handle address
+
+These commands all perform a single shot read from the VME.  The variations
+select the address space and the width of the transfer. Each operation, on success
+returns the value read.
+
+   handle   - The handle from an sis3150::opensis or sis3150::ldopen command.
+   address  - The vme address to read from.
+
+Example: Read 32 bits of data from 0x500000 in A32 space, print as hex
+
+   set value  [sis3150::vmereada32d32 $handle 0x500000]
+   puts "Value is [format 0x%x $value]"
+
+
+      sis3150::vmewritea32d32 handle address  datum
+      sis3150::vmewritea32d16 handle address  datum
+      sis3150::vmewritea32d8  handle address  datum
+      sis3150::vmewritea24d32 handle address  datum
+      sis3150::vmewritea24d16 handle address  datum
+      sis3150::vmewritea24d8  handle address  datum
+      sis3150::vmewritea16d32 handle address  datum
+      sis3150::vmewritea16d16 handle address  datum
+      sis3150::vmewritea16d8  handle address  datum
+
+Performs a single shot VME write.  The variations on this command select the
+address space and the width of the data transfer.
+
+   handle   - The handle from an sis3150::opensis or sis3150::ldopen command.
+   address  - The address to which the datum is transfered
+   datum    - The datum to write to address.
+
+Example:  Write a counting pattern to 0x500000-0x500100.
+
+   set value 0
+   for {set i 0x500000} {$i < 0x500100} {incr i 4} {
+      sis3150::vmewritea32d32 $handle $i $value
+      incr value
+   }
+     
+
+
+2.4 VME block transfer operations
+---------------------------------
+
+Block transfers are also supported by the package:
+
+      vmedmareada32d32 handle baseaddress count
+      vmedmareada24d32 handle baseaddress count
+ 
+Perform dma block transfers to both a32 and a24 space.
+   handle      - The handle from an sis3150::opensis or sis3150::ldopen command.
+   baseaddress - Is the starting address of the read.   
+   count       - Is the number of longwords to transfer.
+
+The operation, if successful, returns a Tcl list that contains the data.
+
+Example:   Writing a counting pattern and Checking it
+
+   set value 0
+   for {set i 0x500000} {$i < 0x500100} {incr i 4} {
+      sis3150::vmewritea32d32 $handle $i $value
+      incr value
+   }
+   set pattern [sis3150::vmedmareada32d32 $handle [expr 0x100/4]]
+   for {set i 0} {$i < 0x100} {incr i} {
+      if {$i != [lindex $pattern $i]} {
+        puts "Mismtach at offset $i value: [lindex $pattern $i]"
+      }
+   }
+
+      vmedmawritea32d32 handle baseaddress data
+      vmedmawritea24d32 handle baseaddress data
+ 
+Perform dma block write operations to both the a32 and a24 address spaces.
+   handle      - The handle from an sis3150::opensis or sis3150::ldopen command.
+   baseaddress - The base address at which the read starts.
+   data        - A Tcl list of data to write.  The transfer count is derived from
+                 that.
+
+Example:  Doing a DMA write of a counting pattern:
+
+   for {set i 0} {$i < 0x100} {incr i} {
+     lappend pattern $i
+   }
+   sis3150::vmedmawritea32d32 $handle 0x500000 $pattern
+
+
+3 The vmeaccess.tcl example
+===========================
+
+The vmeaccess.tcl script is installed in the bin subdirector of the installation
+directory in which you installed the sis3150 support software.
+In addition to providing a demonstration of the sis3150 Tcl package, vmeaccess.tcl
+is a useful program in its own right, as it allows you to peek an poke at arbitrary
+sis3150 registers and vme addresses.
+
+If, for example, you installed in /usr/opt/sisusb, you can run this application by:
+
+/usr/opt/sisusb/bin/vmeaccess.tcl
+
+The program window is divided into four sections.  Starting with the
+upper right segment, and working clockwise around the interface:
+
+The upper right part of the window contains a list of the SIS 3150 interfaces
+located by the software.  The Update button refreshes this list.
+Double clicking an interface closes any open interface and opens the selected
+interface.  Once an interface is open, the remainder of the buttons are
+enabled.
+
+The lower right part of the interface describes the open interface.  In
+addition there are two buttons:
+	 Close   - Closes any open interface.  Buttons that perform VME
+                   operations are then disabled.
+          Rest   - Resets the VME bus connected to the open interface.
+
+The lower left part of the interface supports arbitrary VME transfers.
+An entry is provided for the address and data.  Both are required for a write,
+only the address is required for a read.  The following formats can be used
+for numerical input:
+
+0xnnnnnnnn    - nnnnnnnn is a hexadecimal value
+0nnnnnnnnnnnnn- nnnnnnnnnnnnn is an octal number.
+nnnnnnnnnn    - nnnnnnnnnn is a decimal value. 
+
+   Three rows of radio buttons at the right side of this pane allow you to 
+select the address space and the format of data read.
+
+The Write button performs the seledcted wite on the open interface.
+The Read button performs a read and displays the data in the Data entry
+in the format selected.
+
+
+Finally, the upper left part of the interface allows you to read/write
+registered.  Operation of this part of the interface is similar to the
+Single Shot VME transfer interface, however data are being writtento or
+read fom the SIS 3150 register file.
+
+
+

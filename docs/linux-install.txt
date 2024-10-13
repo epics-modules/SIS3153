@@ -1,0 +1,128 @@
+Installation of the sis3150 package on Linux requires the following
+software pre-requisites:
+
+- gcc compiler.  Installation has been tested with version 3.3.5 but
+                 should work on other versions of the compiler.
+- g++ compiler   Installation has been tested with version 3.3.5 but
+                 should work with other compiler versions.
+- cppunit        c++ unit testing framework.  If your distribution
+                 does not have packages for this, it can be gotten
+                 at http://www.sourceforge.net/projects/cppunit
+- libusb         If your distribution separates the development from
+                 run time, both must be installed. (In particular,
+                 usb.h must be in the standard compiler include paths.
+- tcl            If your distribution separates development and run time,
+                 you will need both packages.
+- tk             If your distribution separtes distribution and run time
+                 you will need both.
+
+
+Your system must be configured to mount usb device special files in
+/proc/bus/usb
+To do this  The kernel must be configured with: CONFIG_USB_DEVICEFS=y
+(this is normal in most 2.6 kernels).
+   
+
+
+
+Once these prerequisites are installed, you must choose an installation
+directory for the sis3150 usb software.  For the remainder of this
+document we will assume you have chosen /usr/opt/sisusb.
+
+First configure the software in the top level directory of the
+unpacked tarball:
+
+./configure --prefix=/usr/opt/sisusb
+
+Other switches can be used to help configure locate
+the software in non-standard directories:
+
+--with-usb-headerdir=path  - Specify directory that has usb.h
+--with-usb-libdir=path     - Specify directory that has libusb.{a,so}
+--with-tcl-header-dir=path - Specify directory that has tcl.h,tk.h
+--with-tcl-libdir=path     - Specify directory that has libtclx.y.{a,so} and
+                             libtkx.y.{a.so}
+
+For more switches to control the operation of configure:
+
+./configure --help
+
+The software will automatically locate the highest version of Tcl/Tk installed
+from the set {8.0, 8.1, 8.2, 8.3, 8.4, 8.5}
+
+
+Once the software is configured:
+
+make install
+
+Will build the software and install it.
+
+
+Post installation:
+   In most systems, the files in /proc/bus/usb are not set to allow
+write access by ordinary users.  The program /usr/opt/sisusb/bin/sishotplugd
+can be run from the system startup rc scripts.  It monitors the system for
+the addition of sis3150 devices.  When one is added, its device special file
+mode is set to 0666 and firmware is loaded into the sis3150.
+
+  It should be run:
+
+/usr/opt/sisusb/bin/sishotplugd --firmware=/usr/opt/sisusb/etc/setup_8051.hex
+
+/usr/opt/sisusb/bin/sishotplugd --help 
+
+will give you a summary of the options this program supports.
+The --debug switch prevents the program from becoming a daemon
+and spews a great deal of information about what the program is
+doing each poll for new devices.
+
+Install notes for SuSE Linux 10.1
+=====================================
+You will need to use yast to install the following packages and their dependencies:
+
+tcl-devel tk-devel gcc-c++
+
+The cppunit test must be installed manuall.  Download this from
+http://www.sourceforge.net/projects/cppunit
+
+untar the tarball and cd to its dir then as root:
+
+./configure --prefix=/usr
+make install
+
+In SuSe 10.1, the usb devices are located in 
+/dev/bus/usb rather than in /proc/bus/usb.
+
+When using the sishotplugd to locate, set permissions
+for device special files and download the firmware,
+specify this location for he device speical files  using
+the --root command e.g.:
+
+/usr/opt/sisusb/bin/sisusbhotplugd --firmware=/usr/opt/sisusb/etc/setup_8051.hex \
+                                   --root=/dev/bus/usb
+
+
+Install notes for Scientific Linux/Red hat:
+===========================================
+You will need to install the following packages:
+tcl-devel tk-devel gcc-c++
+
+I have not found RPMs for the cppunit test framework.
+You will therefore need to get it from 
+http://www.sourceforge.net/projects/cppunit
+
+As root: Untar the cppunit tarball, cd to the directory it creates and:
+
+./configure --prefix=/usr
+make install
+
+
+Acknowledgements:
+=====================
+   This software depends on a library from the Linux packet radio project to
+load the SIS 3150 firmware.  The Linux packet radio project functions used are
+GPL, and used in accordance with the GPL.
+   The low level software is a port of Tino Haupke's windows support software
+for the SIS 3150.  Many thanks to SIS for their support, both technical and
+financial.
+				- Ron Fox
