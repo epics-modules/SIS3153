@@ -3,11 +3,11 @@
 
 record(longin,"$(P)SoftwareVersion") {
     field(DTYP, "asynInt32")
-    field(INP,  "@asyn($(PORT),0x184)A24D16")
+    field(INP,  "@asyn($(PORT), 0)A24D16 0x184")
     field(PINI, "YES")
 }
 
 record(longout,"$(P)PresetPosition") {
     field(DTYP, "asynInt32")
-    field(OUT,  "@asyn($(PORT),0x60)A24D32")
+    field(OUT,  "@asyn($(PORT), 0)A24D32 0x60")
 }
