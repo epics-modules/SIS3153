@@ -1,0 +1,20 @@
+# Database for VME access to Joerger scaler
+# It only uses the A32 address space
+
+record(longin,"$(P)SerialNumber") {
+    field(DTYP, "asynInt32")
+    field(INP,  "@asyn($(PORT), 0)A32D16 0xB0000020")
+    field(PINI, "YES")
+}
+
+record(longin,"$(P)ModuleType") {
+    field(DTYP, "asynInt32")
+    field(INP,  "@asyn($(PORT), 0)A32D16 0xB0000024")
+    field(PINI, "YES")
+}
+
+record(longin,"$(P)Manufacturer") {
+    field(DTYP, "asynInt32")
+    field(INP,  "@asyn($(PORT), 0)A32D16 0xB0000028")
+    field(PINI, "YES")
+}
