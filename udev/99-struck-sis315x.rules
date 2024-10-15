@@ -1,0 +1,4 @@
+# SIS3150 USB
+SUBSYSTEM=="usb", ATTR{idVendor}=="1657", ATTR{idProduct}=="3150", MODE="0666"                                                              
+# SIS3153 USB
+SUBSYSTEM=="usb", ATTR{idVendor}=="1657", ATTR{idProduct}=="3153", MODE="0666"
