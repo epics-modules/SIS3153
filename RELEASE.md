@@ -4,5 +4,5 @@ The versions of EPICS base, asyn, mca, and other synApps modules used for each r
 the configure/RELEASE file in each release of Dante.
 
 ## R1-0 (October XXX, 2024)
-- Initial release.  This not yet been tested, since I don't have the SIS3153 hardware.
+- Initial release.
 
