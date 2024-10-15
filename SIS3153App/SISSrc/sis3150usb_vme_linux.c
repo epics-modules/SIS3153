@@ -24,14 +24,14 @@
 /*                                                                         */
 /*  http://www.struck.de                                                   */
 /*                                                                         */
-/*  © 2015                                                                 */
+/*  Â© 2015                                                                 */
 /*                                                                         */
 /*                                                                         */
 /*                                                                         */
 /***************************************************************************/
 
 
-static char* copyright=" © 2006 SIS Struck Innovated Systeme GmbH All rights reserved\n";
+static char* copyright=" Â© 2006 SIS Struck Innovated Systeme GmbH All rights reserved\n";
 
 #include <sis3150usb_vme.h>
 #include <usrpadaptor.h>
@@ -119,9 +119,10 @@ static int usbInitialized = FALSE;
 static int sis3153_valid_flag = FALSE;
 /*  end modification 2015-03-16  (1.2-006) , sis3153 VME D16/D8 cycles */
 
-
-
 /*   Utility functions: */
+
+static int sis3150_register_read(HANDLE hDevice, ULONG addr, ULONG* data, ULONG req_nof_lwords, ULONG* got_nof_lwords);
+
 
 /*   If necessary, initialize the USB. */
 static void
@@ -307,8 +308,8 @@ FindAll_SIS3150USB_Devices(struct SIS3150USB_Device_Struct* sis3150usb_Device,
 	  sis3150usb_Device->idVendor  = aDevice->descriptor.idVendor;
 	  sis3150usb_Device->idProduct = aDevice->descriptor.idProduct;
 	  sis3150usb_Device->idSerNo   = aDevice->descriptor.bcdDevice; 
-	  sis3150usb_Device->idFirmwareVersion = 0; /* TODO: Fill this in? */
 	  sis3150usb_Device->pDeviceStruct     = aDevice;
+	  sis3150usb_Device->idFirmwareVersion = 0; /* TODO: Fill this in? */
 
 	  sis3150usb_Device++;
 	  arraySize--;
@@ -354,41 +355,53 @@ FindAll_SIS3150USB_Devices(struct SIS3150USB_Device_Struct* sis3150usb_Device,
 int
 Sis3150usb_OpenDriver (PCHAR usbDeviceName, struct SIS3150USB_Device_Struct* sis3150usb_Device)
 {
-  int                       status;
-  struct usb_device*        deviceHardwareHandle;
+	int                       status;
+	struct usb_device*        deviceHardwareHandle;
+	ULONG					  read_data, got_nof_lwords;
+
+	deviceHardwareHandle = getDeviceHandle(sis3150usb_Device->cDName);
+	if (!deviceHardwareHandle) {
+	return -ENODEV;
+	}
 
 
 
-  deviceHardwareHandle = getDeviceHandle(sis3150usb_Device->cDName);
-  if (!deviceHardwareHandle) {
-    return -ENODEV;
-  }
+	/*   Now attempt to open the device, i should index to the found device */
 
+	sis3150usb_Device->hDev = usb_open(deviceHardwareHandle);
+	if (!sis3150usb_Device->hDev) {
+	return -ENODEV;
+	}
 
+	status = usb_claim_interface(sis3150usb_Device->hDev, 0);
+	if (status < 0) {
+	usb_close(sis3150usb_Device->hDev);
+	return status;
+	}
 
-  /*   Now attempt to open the device, i should index to the found device */
+	if(sis3150usb_Device->idProduct == productId){
+	status = usb_set_altinterface(sis3150usb_Device->hDev, 1);
+	if (status < 0) {
+		usb_close(sis3150usb_Device->hDev);
+		return status;
+	}
+	usleep(5000);
+	}
 
-  sis3150usb_Device->hDev = usb_open(deviceHardwareHandle);
-  if (!sis3150usb_Device->hDev) {
-    return -ENODEV;
-  }
+	// Add 2024-10-15
+	// Add firmware version to device handle
+	status = sis3150_register_read(sis3150usb_Device->hDev, 0x01, &read_data, 0x1, &got_nof_lwords);
+	if (status == 0){
+		sis3150usb_Device->idFirmwareVersion = (USHORT)(read_data&0xFFFF);
+	}
 
-  status = usb_claim_interface(sis3150usb_Device->hDev, 0);
-  if (status < 0) {
-    usb_close(sis3150usb_Device->hDev);
-    return status;
-  }
+	// Add serial number to device handle
+	status = sis3150_register_read(sis3150usb_Device->hDev, 0x02, &read_data, 0x1, &got_nof_lwords);
+	if (status == 0){
+		sis3150usb_Device->idSerNo = (USHORT)(read_data&0xFFFF);
+	}
 
-  if(sis3150usb_Device->idProduct == productId){
-    status = usb_set_altinterface(sis3150usb_Device->hDev, 1);
-    if (status < 0) {
-      usb_close(sis3150usb_Device->hDev);
-      return status;
-    }
-    usleep(5000);
-  }
-
-  return 0;
+  	return 0;
 }
 /*!
     Open a device and download the firmware...well actually
@@ -605,11 +618,9 @@ static int sis3150_register_read(HANDLE hDevice, ULONG addr, ULONG* data,
 	}
 	nLWords =  (nBytes / 4) ;
 
-		
 	*got_nof_lwords = (ULONG) (nLWords )  ;
 
-
-   return_code  = 0 ;
+   	return_code  = 0 ;
 return return_code ;
 }
 
@@ -937,17 +948,19 @@ static int sis3150_vmebus_read(HANDLE hDevice, ULONG addr, ULONG vme_am, ULONG v
 	return_code = usbTransaction(hDevice,
 				     cUsbBuf, usb_wlength,
 				     cInPacket, usb_rlength);
+
+	//printf("usbTransaction return: %d\n", return_code);
+
 	if (return_code == -1) {
 	  RETURN(sis3150usb_error_code_usb_write_error);
 	}
 	if (return_code == -2) {
 	  RETURN(sis3150usb_error_code_usb_read_error);
 	}
-
+	
 	nBytes = return_code;
 	*got_nof_bytes = (ULONG) (nBytes )  ;
-	//printf("pnBytes = %d \n",nBytes);
- 
+
 
 /*  begin modification 2015-03-16  (1.2-006) , sis3153 VME D16/D8 cycles */
 	if(sis3153_valid_flag == FALSE){
@@ -965,9 +978,17 @@ static int sis3150_vmebus_read(HANDLE hDevice, ULONG addr, ULONG vme_am, ULONG v
 			  RETURN(return_code);
 			}
 		}
+
+		// Added 2024-10-15 - corresponds to the Windows library
+		if((cSize == 0) || (cSize == 1)) {
+			if(nBytes == 0) {
+				return_code = sis3150usb_error_code_usb_read_length_error; 
+				RETURN(return_code);
+			}
+		}
+
 	}
 /*  end modification 2015-03-16  (1.2-006) , sis3153 VME D16/D8 cycles */
-
 
 	if(nBytes > 0) {
 	  memcpy(cUsbBuf_ptr, cInPacket, nBytes);	/* Clibs usually have good memcpy */
@@ -1016,7 +1037,7 @@ int EXPORT sis3150Usb_Vme_Single_Read(HANDLE usbDevice, ULONG addr, ULONG am, UL
   return_code = sis3150_vmebus_read(usbDevice, addr, am, size, 0, data, req_nof_bytes, &dma_got_no_of_bytes)  ;
   if (size == 1)  {
 	if ((addr & 0x1) == 0x0) {
-        data[0] =   data[0] >> 8	;
+        data[0] =   data[0] >> 8;
     }
   }
   
@@ -1265,13 +1286,13 @@ static int sis3150_vmebus_write(HANDLE hDevice, ULONG addr, ULONG vme_am, ULONG 
 	nBytes      = return_code;
 	return_code = 0;
 
-	if(nBytes == 0) { // OK
+	if(nBytes == 0) { // VME Error
 		*put_nof_bytes = req_nof_bytes  ;
 		return_code = 0;
 		return return_code;
 	}
 
-	if(nBytes == 4) { // VME Error
+	if(nBytes == 4) { // OK
 		data_byte0 =  (ULONG) (cInPacket[0] & 0xff) ;
 		data_byte1 =  (ULONG) (cInPacket[1] & 0xff) ;
 		data_byte2 =  (ULONG) (cInPacket[2] & 0xff) ;
