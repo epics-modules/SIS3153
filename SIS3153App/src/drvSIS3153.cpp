@@ -90,9 +90,8 @@ drvSIS3153::drvSIS3153(const char *portName)
     }
 
     printf("path: %s\n", devStruct_.cDName);
-    printf("vendor: %04X\n", devStruct_.idVendor);
-    printf("product: %04X\n", devStruct_.idProduct);
-    printf("serial #: %04d\n", devStruct_.idSerNo);
+    printf("vendor: 0x%04X\n", devStruct_.idVendor);
+    printf("product: 0x%04X\n", devStruct_.idProduct);
 
     status = Sis3150usb_OpenDriver_And_Download_FX2_Setup ((PCHAR)devStruct_.cDName, &devStruct_);
     if (status) {
@@ -102,7 +101,8 @@ drvSIS3153::drvSIS3153(const char *portName)
         return;
     }
     devHandle_ = devStruct_.hDev;
-    printf("firmware: %04d\n", devStruct_.idFirmwareVersion);
+    printf("serial #: %04d\n", devStruct_.idSerNo);
+    printf("firmware: 0x%04x\n", devStruct_.idFirmwareVersion);
     printf("handle: %p\n", devHandle_);
 
     createParam(P_A16D8_String,  asynParamInt32, &P_A16D8);
