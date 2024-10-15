@@ -7,8 +7,9 @@ The driver allows records to perform VME I/O using standard asyn device support.
 The driver is based on a library from SIS for the low-level USB to VME transactions.
 This library is included in this module, so nothing else needs to be downloaded.
 
-There is a udev file in the udev directory of this module.  
-This needs to be installed where udev files belong on your system, e.g. /etc/udev/rules.d or /usr/local/udev/rules.d.
+There is a udev rules file in the udev/ directory of this module.  
+This needs to be installed where udev rules files belong on your system, e.g. /etc/udev/rules.d or /usr/local/udev/rules.d.
+After installing the file udev needs to be reloaded and the SIS3153 unplugged and replugged.
 
 The syntax of the input and output links for EPICS records is the following:
 ```
