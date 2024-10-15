@@ -28,9 +28,8 @@ int main()
  
     //  use first device
     printf("path: %s\n", devs[0].cDName);
-    printf("vendor: %04X\n", devs[0].idVendor);
-    printf("product: %04X\n", devs[0].idProduct);
-    printf("serial #: %04d\n", devs[0].idSerNo);
+    printf("vendor: 0x%04X\n", devs[0].idVendor);
+    printf("product: 0x%04X\n", devs[0].idProduct);
 
     res =
       Sis3150usb_OpenDriver_And_Download_FX2_Setup ( (PCHAR)devs[0].cDName,
@@ -39,7 +38,8 @@ int main()
         printf("Error in 'Sis3150usb_OpenDriver': %d\n", res);
 	return -1;
     }
-    printf("firmware: %04d\n", devs[0].idFirmwareVersion);
+    printf("serial #: %04d\n", devs[0].idSerNo);
+    printf("firmware: 0x%04x\n", devs[0].idFirmwareVersion);
     printf("handle: %p\n", devs[0].hDev);
     //          for (uint64_t GA=0; GA<=0xf; GA++) {
     uint64_t GA=0x3;

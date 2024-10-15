@@ -32,15 +32,16 @@ int main(int argc, char *argv[])
  
     //  use first device
     printf("path: %s\n", devs[0].cDName);
-    printf("vendor: %04X\n", devs[0].idVendor);
-    printf("product: %04X\n", devs[0].idProduct);
+    printf("vendor: 0x%04X\n", devs[0].idVendor);
+    printf("product: 0x%04X\n", devs[0].idProduct);
 
     res = Sis3150usb_OpenDriver_And_Download_FX2_Setup((PCHAR)devs[0].cDName, &devs[0]);
     if(res != 0){
         printf("Error in 'Sis3150usb_OpenDriver': %d\n", res);
        return -1;
     }
-    printf("firmware: %04X\n", devs[0].idFirmwareVersion);
+    printf("serial #: %04d\n", devs[0].idSerNo);
+    printf("firmware: 0x%04X\n", devs[0].idFirmwareVersion);
     printf("handle: %p\n", devs[0].hDev);
 
     printf("\nRead tests\n");
