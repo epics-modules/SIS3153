@@ -41,7 +41,6 @@ public:
     drvSIS3153(const char *portName);
 
     /* These are the methods that we override from asynPortDriver */
-    virtual asynStatus getAddress(asynUser *pasynUser, int *address);
     virtual asynStatus readInt32(asynUser *pasynUser, epicsInt32 *value);
     virtual asynStatus writeInt32(asynUser *pasynUser, epicsInt32 value);
     virtual asynStatus drvUserCreate(asynUser *pasynUser, const char *drvInfo,
@@ -114,13 +113,6 @@ drvSIS3153::drvSIS3153(const char *portName)
     createParam(P_A32D8_String,  asynParamInt32, &P_A32D8);
     createParam(P_A32D16_String, asynParamInt32, &P_A32D16);
     createParam(P_A32D32_String, asynParamInt32, &P_A32D32);
-}
-
-asynStatus drvSIS3153::getAddress(asynUser *pasynUser, int *address)
-{
-    // We use the asyn address for Modbus register addressing, but not for multiple addresses in asynPortDriver
-    *address = 0;
-    return asynSuccess;
 }
 
 asynStatus drvSIS3153::readInt32(asynUser *pasynUser, epicsInt32 *value)
